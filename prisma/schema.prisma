@@ -1,0 +1,185 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  USER
+}
+model RegisterUser {
+  id       String   @id @default(cuid())
+  email    String   @unique
+  password String
+  name  String?
+  role     UserRole @default(USER) // Default role for registration
+}
+
+
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[] // Back relation to Account
+  sessions      Session[]
+}
+
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?  @db.Text
+  access_token       String?  @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?  @db.Text
+  session_state      String?
+
+  // THIS IS THE MISSING PART:
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum Role {
+  ADMIN
+  HR
+  EMPLOYEE
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model UserHR {
+  id          String   @id @default(uuid())
+  name        String
+  email       String   @unique
+  password    String
+  role        Role     @default(EMPLOYEE)
+  createdAt   DateTime @default(now())
+
+  employee    Employee?
+}
+
+model Employee {
+  id            String       @id @default(uuid())
+  userId        String       @unique
+  department    String
+  designation   String
+  salary        Float
+
+  userHR          UserHR         @relation(fields: [userId], references: [id])
+
+  attendance    Attendance[]
+  leaveRequests Leave[]
+}
+
+model Attendance {
+  id          String   @id @default(uuid())
+  employeeId  String
+  checkIn     DateTime
+  checkOut    DateTime?
+
+  employee    Employee @relation(fields: [employeeId], references: [id])
+}
+
+model Leave {
+  id          String      @id @default(uuid())
+  employeeId  String
+  fromDate    DateTime
+  toDate      DateTime
+  reason      String
+  status      LeaveStatus @default(PENDING)
+
+  employee    Employee    @relation(fields: [employeeId], references: [id])
+}
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  imageUrl  String?  // Store the path or URL
+  createdAt DateTime @default(now())
+}
+
+model Product {
+  id        String   @id @default(uuid())
+  name      String
+  weight    Float
+  price     Float
+  stock     Int
+  invoiceItems InvoiceItem[] 
+
+  createdAt DateTime @default(now())
+}
+
+model Customer {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String
+  address   String?
+  invoices Invoice[] 
+
+  createdAt DateTime @default(now())
+}
+
+model Invoice {
+  id          String   @id @default(uuid())
+  customerId  String
+  total       Float
+  paid        Float
+  balance     Float
+  createdAt   DateTime @default(now())
+
+  customer    Customer @relation(fields: [customerId], references: [id])
+  items       InvoiceItem[]
+}
+
+model InvoiceItem {
+  id        String  @id @default(uuid())
+  invoiceId String
+  productId String
+  quantity  Int
+  price     Float
+
+  invoice   Invoice @relation(fields: [invoiceId], references: [id])
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+model Transaction {
+  id        String   @id @default(uuid())
+  type      String   // INCOME / EXPENSE
+  amount    Float
+  note      String?
+  createdAt DateTime @default(now())
+}
